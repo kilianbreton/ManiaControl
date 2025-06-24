@@ -1,5 +1,4 @@
 <?php
-
 namespace ManiaControl\ManiaExchange;
 
 use ManiaControl\Files\AsyncHttpRequest;
@@ -39,7 +38,7 @@ class ManiaExchangeManager implements UsageInformationAble {
 	const SEARCH_ORDER_COMMENTS_LEAST     = 11;
 	const SEARCH_ORDER_DIFFICULTY_EASIEST = 12;
 	const SEARCH_ORDER_DIFFICULTY_HARDEST = 13;
-	const SEARCH_ORDER_LENGTH_SHORTEST    = 14;
+	const SEARCH_ORDER_LENGTH_SHORTEST 	  = 14;
 	const SEARCH_ORDER_LENGTH_LONGEST     = 15;
 
 	//Maximum Maps per request
@@ -86,17 +85,17 @@ class ManiaExchangeManager implements UsageInformationAble {
 	public function fetchManiaExchangeMapInformation($maps = null) {
 		if ($maps) {
 			// Fetch Information for a single map
-			$maps = array($maps);
+			$maps = [$maps];
 		} else {
 			// Fetch Information for whole MapList
 			$maps = $this->maniaControl->getMapManager()->getMaps();
 		}
 
-		$mysqli      = $this->maniaControl->getDatabase()->getMysqli();
+		$mysqli = $this->maniaControl->getDatabase()->getMysqli();
 		$mapIdString = '';
 
 		// Fetch mx ids
-		$fetchMapQuery     = "SELECT `mxid`, `changed`  FROM `" . MapManager::TABLE_MAPS . "`
+		$fetchMapQuery = "SELECT `mxid`, `changed`  FROM `" . MapManager::TABLE_MAPS . "`
 				WHERE `index` = ?;";
 		$fetchMapStatement = $mysqli->prepare($fetchMapQuery);
 		if ($mysqli->error) {
@@ -164,11 +163,8 @@ class ManiaExchangeManager implements UsageInformationAble {
 		$titlePrefix = $this->maniaControl->getMapManager()->getCurrentMap()->getGame();
 
 		// compile search URL
-		$url = 'https://' . $titlePrefix . ".mania.exchange/api/maps/get_map_info/multi/{$string}";
-
-		/*if ($key = $this->maniaControl->getSettingManager()->getSettingValue($this, self::SETTING_MX_KEY)) {
-			$url .= "&key=" . $key;
-		}*/
+		$url = 'https://' . $titlePrefix . '.mania.exchange/api/maps/' . ManiaExchangeMapSearch::API_SEARCH_FIELDS;
+		$url .= "&id=" . $string;
 
 		$asyncHttpRequest = new AsyncHttpRequest($this->maniaControl, $url);
 		$asyncHttpRequest->setContentType(AsyncHttpRequest::CONTENT_TYPE_JSON);
@@ -186,9 +182,12 @@ class ManiaExchangeManager implements UsageInformationAble {
 				trigger_error("Can't decode searched JSON Data from Url '{$url}'");
 				return;
 			}
+			if (!isset($mxMapList->Results)) {
+				trigger_error("Error : Missing Results field");
+			}
 
-			$maps = array();
-			foreach ($mxMapList as $map) {
+			$maps = [];
+			foreach ($mxMapList->Results as $map) {
 				if ($map) {
 					$mxMapObject = new MXMapInfo($titlePrefix, $map);
 					if ($mxMapObject) {
@@ -211,7 +210,7 @@ class ManiaExchangeManager implements UsageInformationAble {
 	public function updateMapObjectsWithManiaExchangeIds(array $mxMapInfos) {
 		$mysqli = $this->maniaControl->getDatabase()->getMysqli();
 		// Save map data
-		$saveMapQuery     = "UPDATE `" . MapManager::TABLE_MAPS . "`
+		$saveMapQuery = "UPDATE `" . MapManager::TABLE_MAPS . "`
 				SET `mxid` = ?
 				WHERE `uid` = ?;";
 		$saveMapStatement = $mysqli->prepare($saveMapQuery);
@@ -223,7 +222,7 @@ class ManiaExchangeManager implements UsageInformationAble {
 		foreach ($mxMapInfos as $mxMapInfo) {
 			/** @var MXMapInfo $mxMapInfo */
 			$mapMxId = $mxMapInfo->id;
-			$mapUId  = $mxMapInfo->uid;
+			$mapUId = $mxMapInfo->uid;
 			$saveMapStatement->execute();
 			if ($saveMapStatement->error) {
 				trigger_error($saveMapStatement->error);
@@ -265,7 +264,8 @@ class ManiaExchangeManager implements UsageInformationAble {
 		$titlePrefix = $this->maniaControl->getMapManager()->getCurrentMap()->getGame();
 
 		// compile search URL
-		$url = 'https://' . $titlePrefix . '.mania.exchange/' . 'api/maps/get_map_info/multi/' . $mapId;
+		$url = 'https://' . $titlePrefix . '.mania.exchange/api/maps/' . ManiaExchangeMapSearch::API_SEARCH_FIELDS;
+		$url .= "&id=" . $mapId;
 
 		/*if ($key = $this->maniaControl->getSettingManager()->getSettingValue($this, self::SETTING_MX_KEY)) {
 			$url .= "&key=" . $key;
@@ -279,10 +279,14 @@ class ManiaExchangeManager implements UsageInformationAble {
 				trigger_error($error);
 			} else {
 				$mxMapList = json_decode($mapInfo);
-				if (!is_array($mxMapList)) {
+				if (!isset($mxMapList->Results)) {
+					trigger_error("Error : Missing Results field");
+					return;
+				}
+				if (!is_array($mxMapList->Results)) {
 					trigger_error('Cannot decode searched JSON data from ' . $url);
-				} else if (!empty($mxMapList)) {
-					$mxMapInfo = new MXMapInfo($titlePrefix, $mxMapList[0]);
+				} else if (!empty($mxMapList->Results)) {
+					$mxMapInfo = new MXMapInfo($titlePrefix, $mxMapList->Results[0]);
 				}
 			}
 			call_user_func($function, $mxMapInfo);

@@ -54,6 +54,7 @@ class ManiaExchangeMapSearch implements UsageInformationAble {
 	const SEARCH_ORDER_SPECIAL_MOST_COMPETITIVE_MONTH   = 20;
 	const SEARCH_ORDER_SPECIAL_BEST_ONLINE_RATING_WEEK  = 21;
 	const SEARCH_ORDER_SPECIAL_BEST_ONLINE_RATING_MONTH = 22;
+    const API_SEARCH_FIELDS = "?fields=MapId,MapUid,Type,MapType,Environment,TitlePack,Name,GbxMapName,Uploader.Name,Uploader.UserId,Style,Environment,Mood,Difficulty,HasThumbnail,DisplayCost,Authors,UploadedAt,UpdatedAt,ModName,ExeVersion,Exebuild,Length,Laps,TrackValue,ReplayCount,ReplayType,ReplayWR.ReplayId,AwardCount,VehicleName,AuthorComments,CommentCount";
 
 	//Private Properties
 	private $url         = "";
@@ -102,7 +103,7 @@ class ManiaExchangeMapSearch implements UsageInformationAble {
 
 		$this->titlePrefix = $this->maniaControl->getMapManager()->getCurrentMap()->getGame();
 
-		$this->url = 'https://' . $this->titlePrefix . '.mania-exchange.com/tracksearch2/search?api=on';
+		$this->url = 'https://' . $this->titlePrefix . '.mania.exchange/api/maps/';
 
 		/*if ($key = $this->maniaControl->getSettingManager()->getSettingValue($this->maniaControl->getMapManager()->getMXManager(), ManiaExchangeManager::SETTING_MX_KEY)) {
 			$this->url .= "&key=" . $key;
@@ -135,90 +136,42 @@ class ManiaExchangeMapSearch implements UsageInformationAble {
 	 * @param callable $function
 	 */
 	public function fetchMapsAsync(callable $function) {
-		// compile search URL
-		$parameters = "";
+		// Required fields
+		$parameters = self::API_SEARCH_FIELDS;
 
-		if ($this->mode) {
-			$parameters .= "&mode=" . $this->mode;
-		}
 		if ($this->mapName) {
-			$parameters .= "&trackname=" . urlencode($this->mapName);
-		}
-		if ($this->authorName) {
-			$parameters .= "&author=" . urlencode($this->authorName);
-		}
-		if ($this->mod) {
-			$parameters .= "&mod=" . urlencode($this->mod);
-		}
-		if ($this->authorId) {
-			$parameters .= "&authorid= " . $this->authorId;
-		}
-		if ($this->maniaScriptType) {
-			$parameters .= "&mtype=" . urlencode($this->maniaScriptType);
-		}
-		if ($this->titlePack) {
-			$parameters .= "&tpack=" . urlencode($this->titlePack);
-		}
-		if ($this->replayType) {
-			$parameters .= "&rytpe=" . $this->replayType;
-		}
-		if ($this->style) {
-			$parameters .= "&style=" . $this->style;
-		}
-		if ($this->length) {
-			$parameters .= "&length=" . $this->length;
-		}
-		if ($this->lengthOperator) {
-			$parameters .= "&lengthop=" . $this->lengthOperator;
-		}
-		if ($this->priorityOrder) {
-			$parameters .= "&priord=" . $this->priorityOrder;
-		}
-		if ($this->secondaryOrder) {
-			$parameters .= "&secord=" . $this->secondaryOrder;
-		}
-		if ($this->environments) {
-			$parameters .= "&environments=" . $this->environments;
-		}
-		if ($this->vehicles) {
-			$parameters .= "&vehicles=" . $this->vehicles;
-		}
-		if ($this->page) {
-			$parameters .= "&page=" . $this->page;
-		}
-		if ($this->mapLimit) {
-			$parameters .= "&limit=" . $this->mapLimit;
-		}
-		if (isset($this->unreleased)) {
-			$parameters .= "&unreleased=" . (int) $this->unreleased;
-		}
-		if ($this->mapGroup) {
-			$parameters .= "&mapgroup=" . $this->mapGroup;
-		}
-		if ($this->commentsMinLength) {
-			$parameters .= "&commentsminlength=" . $this->commentsMinLength;
-		}
-		if (isset($this->customScreenshot)) {
-			$parameters .= "&customscreenshot=" . $this->customScreenshot;
-		}
-		if ($this->minExeBuild) {
-			$parameters .= "&minexebuild=" . urlencode($this->minExeBuild);
-		}
-		if (isset($this->envMix)) {
-			$parameters .= "&envmix=" . (int) $this->envMix;
-		}
-		if (isset($this->ghostBlocks)) {
-			$parameters .= "&ghostblocks=" . (int) $this->ghostBlocks;
-		}
-		if (isset($this->embeddedObjects)) {
-			$parameters .= "&embeddedobjects=" . (int) $this->embeddedObjects;
-		}
-		if (isset($this->key)) {
-			$parameters .= "&key=" . $this->key;
-		}
-		if (isset($this->mp4)) {
-			$parameters .= "&mp4=" . $this->mp4;
-		}
+            $parameters .= "&name=" . urlencode($this->mapName);
+        }
+        if ($this->authorName) {
+            $parameters .= "&author=" . urlencode($this->authorName);
+        }
+        if ($this->mod) {
+            $parameters .= "&mod=" . urlencode($this->mod);
+        }
+
+        if ($this->maniaScriptType) {
+            $mapType = $this->maniaScriptType;
+            //We use only the first maptype
+            if (strpos($mapType, ",")) {
+                $mapType = substr($mapType, 0, strpos($mapType, ","));
+            }
+            $parameters .= "&MapType=" . urlencode($mapType);
+        }
+        if ($this->titlePack) {
+            $parameters .= "&titlepack=" . urlencode($this->titlePack);
+        }
+        if ($this->replayType) {
+            $parameters .= "&lbtype=" . $this->replayType;
+        }
+        if ($this->environments) {
+            $parameters .= "&environment=" . $this->environments;
+        }
+        if ($this->vehicles) {
+            $parameters .= "&vehicle=" . $this->vehicles;
+        }
+        if ($this->mapLimit) {
+            $parameters .= "&count=" . $this->mapLimit;
+        }
 
 		$asyncHttpRequest = new AsyncHttpRequest($this->maniaControl, $this->url . $parameters);
 		$asyncHttpRequest->setContentType(AsyncHttpRequest::CONTENT_TYPE_JSON);
@@ -230,12 +183,12 @@ class ManiaExchangeMapSearch implements UsageInformationAble {
 
 			$mxMapList = json_decode($mapInfo);
 
-			if (!isset($mxMapList->results)) {
+			if (!isset($mxMapList->Results)) {
 				trigger_error('Cannot decode searched JSON data');
 				return;
 			}
 
-			$mxMapList = $mxMapList->results;
+			$mxMapList = $mxMapList->Results;
 
 			if ($mxMapList === null) {
 				trigger_error('Cannot decode searched JSON data');
