@@ -1,3 +1,7 @@
+###v1.0###
+#Changes
+- Use new Yox API 
+
 ###v0.258###
 #Changes
 - MC compatibility with MX v2 api

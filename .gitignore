@@ -10,3 +10,5 @@
 !/plugins/
 /plugins/*
 !/plugins/MCTeam/
+/make_release.sh
+/release.zip
